@@ -38,7 +38,7 @@ Content-Type: application/json
   "ttlSeconds": 86400
 }
 
-Response
+```Response
 {
   "shortUrl": "http://localhost:8080/abc123",
   "code": "abc123",
