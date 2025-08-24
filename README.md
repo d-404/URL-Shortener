@@ -44,3 +44,9 @@ Content-Type: application/json
   "expiresAt": "2025-08-25T12:00:00Z"
 }
 ```
+
+### Redirect
+```http
+GET /{code}
+→ 302 Location: target
+```
