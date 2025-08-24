@@ -47,6 +47,6 @@ Content-Type: application/json
 
 ### Redirect
 ```
-# GET /{code}
+sGET /{code}
 → 302 Location: target
 ```
