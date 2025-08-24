@@ -37,3 +37,10 @@ Content-Type: application/json
   "customAlias": "opt",
   "ttlSeconds": 86400
 }
+
+Response
+{
+  "shortUrl": "http://localhost:8080/abc123",
+  "code": "abc123",
+  "expiresAt": "2025-08-25T12:00:00Z"
+}
