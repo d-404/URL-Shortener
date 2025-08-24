@@ -1,0 +1,57 @@
+Requirements:
+Create short URL for a long URL (+ optional custom alias, expiry).
+Redirect GET /{code} fast (<5–10 ms p99 from cache).
+Rate limiting (protect POST and resolve path).
+Operable/observable (metrics, logs, health).
+
+-------------------------------------------------------------------
+
+High-Level Architecture:
+POST /api/v1/urls → validate URL → ID generator (Snowflake or DB sequence) → Base62 encode → store in Postgres → prime Redis (code -> target_url, TTL=expiry or 30d+) → return short.
+GET /{code} → check Redis → on miss hit Postgres; if found, backfill Redis.
+
+-------------------------------------------------------------------
+
+API Surface:
+POST /api/v1/urls
+	body: { "url": "...", "customAlias": "opt", "ttlSeconds": 86400 }
+	returns: { "shortUrl": "https://sho.rt/abc123", "code":"abc123", "expiresAt":"..." }
+GET /{code} → 302 Location: target
+GET /api/v1/urls/{code}/stats → { clicks, lastClicked, createdAt, expiresAt }
+DELETE /api/v1/urls/{code} → deactivate
+PUT /api/v1/urls/{code} → update expiry/target (optional)
+
+-------------------------------------------------------------------
+
+Key Design Choices:
+Code generation
+Default: code = base62(id) where id is a monotonic Snowflake (or DB sequence).
+If custom alias provided: validate and ensure uniqueness via unique index (409 on conflict).
+Collision handling: base62 from a unique id avoids collisions; custom alias relies on DB unique constraint.
+
+Caching
+Redis: GET code -> value where value is the target URL and metadata (e.g., json).
+TTL: min(expiresAt - now, defaultCacheTtl).
+Negative caching (code not found) for a short ttl (e.g., 30s) reduces DB spam.
+Rate limiting: Bucket4j filter (per IP for POST, per code or IP for GET).
+
+Validation & safety
+Normalize/validate URL (scheme http/https), length caps, domain black/allow lists.
+Don’t allow shortening your own short domain to prevent loops.
+
+Observability
+Spring Boot Actuator + Prometheus (latencies, cache hit ratio, 302 counts).
+Structured JSON logs with code, latency, cacheHit flag.
+
+-------------------------------------------------------------------
+
+Folder Structure:
+config/ → app-wide beans (RedisTemplate, Kafka, Rate limiting, etc.).
+controller/ → REST APIs (POST /api/v1/urls, GET /{code}).
+dto/ → Request/response records (keeps API contracts clean).
+entity/ → JPA entity classes (ShortUrl).
+repository/ → Spring Data repositories.
+service/ → Business logic (shortening, resolving, caching, validation).
+util/ → Helpers (Base62, Snowflake).
+filter/ → Servlet filters (rate limiting, logging, etc.).
+resources/ → config (application.yml) + DB migration (schema.sql or db/migration if Flyway).
