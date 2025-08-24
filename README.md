@@ -46,7 +46,7 @@ Content-Type: application/json
 ```
 
 ### Redirect
-```http
-GET /{code}
+```
+# GET /{code}
 → 302 Location: target
 ```
